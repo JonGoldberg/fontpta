@@ -1,6 +1,7 @@
 #! /bin/bash python
 
 import argparse
+import base64
 from config import paypal_init
 from datetime import (
     datetime,
@@ -58,6 +59,36 @@ def _print_transactions(transaction_details):
         print('%s,%s,%s,%s,%s' % (tx_date, payer_email, payer_name, invoice_id, amount_paid))
 
 
+def _mint_access_token(app_client_id, app_secret):
+    """Convert the app secret into a short-lived access_token that can be used to make requests.
+    """
+    app_password_bytes = ('%s:%s' % (app_client_id, app_secret)).encode()
+    encoded_auth_str = base64.b64encode(app_password_bytes).decode()
+    request_headers = {
+      'Accept': 'application/json',
+      'Accept-Language': 'en_US',
+      'Authorization': 'Basic %s' % encoded_auth_str,
+    }
+    logging.debug('Headers for oauth2/token request: %r', request_headers)
+
+    response = requests.post(
+      'https://api.paypal.com/v1/oauth2/token',
+      {'grant_type': 'client_credentials'},
+      headers=request_headers,
+    )
+    logging.debug('Response from oauth2/token request: %r', response)
+    if response.ok:
+       response_json = response.json()
+       logging.debug('Response json %r', response_json)
+       return response_json['access_token']
+    else:
+        logging.error('Failed to mint access token with status=%r: %r',
+            response.status_code,
+            response.text,
+        )
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description='Fetches and formats recent paypal transactions.')
     parser.add_argument(
@@ -78,6 +109,7 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     iso_end_date = args.end_date
+    end_date = None
     if not iso_end_date:
         end_date = datetime.utcnow()
         iso_end_date = _iso_utc_str(end_date)
@@ -92,9 +124,13 @@ def main():
     config = paypal_init()
     logging.debug('Config: %r', config,)
 
+    access_token = _mint_access_token(config['app_client_id'], config['app_secret'])
+    if not access_token:
+       return 1
+
     request_headers = {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer %s' % config['access_token'],
+        'Authorization': 'Bearer %s' % access_token,
     }
     request_params = dict(
         start_date=iso_start_date,

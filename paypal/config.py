@@ -4,16 +4,10 @@ The config file should be of the format:
 
 ```
 [DEFAULT]
-ACCESS_TOKEN = MY-ACCESS-TOKEN
 APP_ID = APP-MYIDHERE
+APP_CLIENT_ID = myclientid
+APP_SECRET = myappsecret
 ```
-
-The access token and app id can be retrieved by making a paypal oauth2/token request like:
-curl https://api.sandbox.paypal.com/v1/oauth2/token \
-   -H "Accept: application/json" \
-   -H "Accept-Language: en_US" \
-   -u "ClientID:Secret" \
--d "grant_type=client_credentials"
 
 with the ClientID and Secret retrieved from https://developer.paypal.com/developer/applications.
 
@@ -37,5 +31,6 @@ def paypal_init(filename=None):
     config.read(filename)
     return dict(
         app_id=config['DEFAULT']['APP_ID'],
-        access_token=config['DEFAULT']['ACCESS_TOKEN'],
+        app_client_id = config['DEFAULT']['APP_CLIENT_ID'],
+        app_secret = config['DEFAULT']['APP_SECRET'],
     )
